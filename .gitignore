@@ -1,0 +1,7 @@
+/bin/*
+!/bin/.gitkeep
+/artifacts/*
+!/artifacts/.gitkeep
+/local.json
+*.log
+node_modules/
