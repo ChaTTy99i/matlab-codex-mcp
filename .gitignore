@@ -5,3 +5,7 @@
 /local.json
 *.log
 node_modules/
+*.mlx
+*.mat
+*.fig
+*_results/

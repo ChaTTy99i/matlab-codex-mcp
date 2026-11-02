@@ -39,32 +39,39 @@ try {
   assert.ok(textOf(error).includes('MCP_EXPECTED_ERROR'));
   await check('Session remains usable after an error', 'evaluate_matlab_code', { code: "disp('RECOVERY_OK');" }, 'RECOVERY_OK');
 
-  const exercise = process.argv[2];
-  if (exercise) {
-    const full = path.resolve(exercise);
+  const inputScript = process.argv[2];
+  if (inputScript) {
+    const full = path.resolve(inputScript);
+    const extension = path.extname(full).toLowerCase();
+    assert.ok(['.m','.mlx'].includes(extension),'Local script must be .m or .mlx');
     const before = createHash('sha256').update(await readFile(full)).digest('hex');
-    console.log('Testing unchanged Live Script: ' + full);
+    console.log('Testing unchanged MATLAB script: ' + full);
     // run_matlab_file only supports .m/.p. MATLAB run() handles Live Scripts.
     const result = await client.call('evaluate_matlab_code', { code: `run(${matlabString(full)});` });
-    report.exercise = { path: full, sha256Before: before, directResult: result };
+    report.script = { path: full, sha256Before: before, directResult: result };
+    let executionResult = result;
     if (textOf(result).includes('MATLAB:run:CannotExecute')) {
-      const copy = path.join(outDir, 'exercise_under_test.mlx');
+      const copy = path.join(outDir, 'script_under_test' + extension);
       await copyFile(full, copy);
       assert.equal(createHash('sha256').update(await readFile(copy)).digest('hex'), before);
       console.log('Retrying identical contents with a valid MATLAB filename.');
-      report.exercise.copyResult = await client.call('evaluate_matlab_code', { code: `run(${matlabString(copy)});` });
-      console.log('Exercise copy result: ' + textOf(report.exercise.copyResult));
-      const exported = path.join(outDir, 'exercise_editable.m');
-      report.exercise.exportResult = await check('Export Live Script to editable MATLAB source', 'evaluate_matlab_code', {
-        code: `export(${matlabString(copy)}, ${matlabString(exported)}, Run=false); disp('EXPORT_OK');`
-      }, 'EXPORT_OK');
-      assert.ok((await readFile(exported, 'utf8')).includes('bvpinit'));
+      executionResult = report.script.copyResult = await client.call('evaluate_matlab_code', { code: `run(${matlabString(copy)});` });
+      console.log('Script copy result: ' + textOf(executionResult));
+      if (extension === '.mlx') {
+        const exported = path.join(outDir, 'script_editable.m');
+        report.script.exportResult = await check('Export Live Script to editable MATLAB source', 'evaluate_matlab_code', {
+          code: `export(${matlabString(copy)}, ${matlabString(exported)}, Run=false); disp('EXPORT_OK');`
+        }, 'EXPORT_OK');
+        assert.ok((await readFile(exported, 'utf8')).trim().length > 0,'Exported source is empty');
+      }
     }
     const after = createHash('sha256').update(await readFile(full)).digest('hex');
     assert.equal(after, before, 'Original exercise was modified');
-    report.exercise.sha256After = after;
-    console.log('Exercise result: ' + textOf(result));
-    // An unfinished exercise may error; report separately from connector checks.
+    report.script.sha256After = after;
+    report.scriptPassed = !executionResult.isError;
+    console.log('Script result: ' + textOf(executionResult));
+    console.log('Optional script passed: ' + report.scriptPassed);
+    // User script errors are separate from connector checks.
   }
   report.connectorPassed = true;
   console.log('All connector checks passed.');

@@ -59,6 +59,22 @@ export('C:\path\exercise.mlx', 'C:\path\exercise_editable.m', Run=false);
 
 Edit and run the `.m` copy with Codex. This export is a standard MATLAB code file and does not preserve all Live Editor interactivity. Keep the original `.mlx`; use MATLAB's Live Editor to save a final Live Script if needed. No binary `.mlx` editing is performed by this toolkit.
 
+For successive revisions, save names such as `analysis_copy.mlx` and `analysis_copy_2.mlx`. Preserve previous versions. Use valid MATLAB identifiers for script names: start with a letter, use letters/digits/underscores, and stay within 63 characters.
+
+**Saved inline outputs require a Live Editor run.** A successful command-window `run` can leave an old red error marker and old output inside an `.mlx` file. Open the final file in the Live Editor, choose **Run all sections (F5)**, wait for completion, and **Save (Ctrl+S)**. Verify the plots and error markers there. The command runner below leaves standalone figures open; it does not save refreshed inline outputs automatically.
+
+## Run a script with visible plots
+
+```powershell
+.\scripts\run-visible.ps1 -ScriptPath .\examples\plot_demo.m
+# Or any local script with a valid filename:
+.\scripts\run-visible.ps1 -ScriptPath 'C:\my-project\analysis_copy_2.mlx' -TimeoutSeconds 300
+```
+
+This starts a separate MATLAB desktop session, executes the specified script, opens it in the editor, and leaves its figures available. It reports completion or the actual MATLAB error. Each call starts a new desktop session; it does not attach to an existing session. A timeout does not stop MATLAB. Machine-specific wrapper scripts and status reports stay in ignored `artifacts/`.
+
+The included [plotting example](examples/plot_demo.m) generates a damped oscillation from a formula. It needs no input data or private files. All computations and assertions run inside MATLAB.
+
 ## Verify
 
 ```powershell
@@ -66,12 +82,14 @@ node --test tests/*.test.mjs
 node scripts/cli.mjs tools
 node scripts/smoke.mjs
 # Optional local Live Script test; nothing is uploaded:
-node scripts/smoke.mjs 'C:\path\to\exercise.mlx'
+node scripts/smoke.mjs 'C:\path\to\analysis_copy_2.mlx'
+# Synthetic example, with no measured data:
+node scripts/smoke.mjs examples/plot_demo.m
 ```
 
 The smoke test starts real MATLAB, checks arithmetic, runs a generated script, changes its contents through MCP, reruns it, invokes Code Analyzer, checks error reporting and recovery, and optionally runs a Live Script. For a filename rejection it retries a byte-identical local copy with a valid name and exports editable source. It verifies the original file's SHA-256 remains unchanged. Reports and generated files go to ignored `artifacts/`.
 
-Connector success and optional exercise success are separate report fields. An incomplete exercise can fail while the connector passes. Each diagnostic CLI invocation starts a fresh session; use the smoke test or Codex for multi-step persistent work.
+Connector success (`connectorPassed`) and optional script success (`scriptPassed`) are separate report fields. An incomplete script can fail while the connector passes; inspect both fields. Each diagnostic CLI invocation starts a fresh session; use the smoke test or Codex for multi-step persistent work. The tests do not require a particular variable, numerical method, or example filename.
 
 GitHub Actions checks the diagnostic client's transport and PowerShell syntax without MATLAB. It does **not** claim to run the licensed MATLAB integration test. See [the local validation report](docs/VALIDATION.md).
 
@@ -90,6 +108,8 @@ To disconnect, run `codex mcp remove matlab` and restart Codex. The configuratio
 ## Repository scope
 
 Only setup scripts, diagnostics, tests, and documentation belong here. MATLAB binaries, generated reports, machine-specific config, and course materials are excluded. No MATLAB license or third-party redistribution rights are granted. See [THIRD_PARTY.md](THIRD_PARTY.md).
+
+Keep exact worked examples in separate **private** repositories, one per example, with their own README, inputs, versioned solutions and result snapshots. This integration repository contains only generic code and synthetic examples.
 
 ## Sources
 
